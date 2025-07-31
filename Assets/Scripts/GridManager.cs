@@ -12,6 +12,8 @@ public class GridManager : MonoBehaviour
     private Dictionary<Vector2Int, ColorType> colorGrid = new Dictionary<Vector2Int, ColorType>();
     public List<Block> allBlocks = new List<Block>();
 
+    public bool isMatchProcessing = false; 
+
     private void Awake()
     {
         if (Instance == null)
@@ -24,23 +26,36 @@ public class GridManager : MonoBehaviour
     {
         if (!allBlocks.Contains(block))
             allBlocks.Add(block);
+        UpdateColorGridFromAll();
+    }
+
+    void Update()
+    {
+        if (!isMatchProcessing)
+            ApplyGravityToEmptyBlocks();
+    }
+
+    public void UpdateColorGridFromAll()
+    {
+        colorGrid.Clear();
+        foreach (var block in allBlocks)
+        {
+            var positions = block.GetOccupiedGridPositions();
+            for (int i = 0; i < positions.Length; i++)
+            {
+                colorGrid[positions[i]] = block.blockData[i].color;
+            }
+        }
     }
 
     public void UpdateColorGrid(Block block)
     {
-        // Önce bu block'un kapladığı yerleri temizle
-        foreach (var kvp in new Dictionary<Vector2Int, ColorType>(colorGrid))
+        foreach (var pos in block.GetOccupiedGridPositions())
         {
-            Vector2Int pos = kvp.Key;
-            Vector2Int[] occupied = block.GetOccupiedGridPositions();
-            foreach (var occ in occupied)
-            {
-                if (pos == occ)
-                    colorGrid.Remove(pos);
-            }
+            if (colorGrid.ContainsKey(pos))
+                colorGrid.Remove(pos);
         }
 
-        // Yeniden ekle
         var positions = block.GetOccupiedGridPositions();
         for (int i = 0; i < positions.Length; i++)
         {
@@ -50,7 +65,6 @@ public class GridManager : MonoBehaviour
 
     public void CheckForMatches()
     {
-        // Önce tek renk blokları bul ve match yap
         List<Block> singleColorBlocks = new List<Block>();
         foreach (var block in allBlocks)
         {
@@ -58,7 +72,6 @@ public class GridManager : MonoBehaviour
                 singleColorBlocks.Add(block);
         }
 
-        // Tek renk blokları yok etmeden önce slot’a gönder
         foreach (var block in singleColorBlocks)
         {
             Debug.Log($"🎯 Single Color Auto-Match: {block.blockData[0].color}");
@@ -82,7 +95,6 @@ public class GridManager : MonoBehaviour
             Destroy(block.gameObject);
         }
 
-
         for (int x = 0; x < width - 1; x++)
         {
             for (int y = 0; y < height - 1; y++)
@@ -100,7 +112,6 @@ public class GridManager : MonoBehaviour
                     ColorType cc = colorGrid[c];
                     ColorType cd = colorGrid[d];
 
-                    // Renkler aynı değilse match yok
                     if (!(ca == cb && cb == cc && cc == cd))
                         continue;
 
@@ -110,16 +121,15 @@ public class GridManager : MonoBehaviour
                     foreach (var block in allBlocks)
                     {
                         var occupiedPositions = block.GetOccupiedGridPositions();
-                        int overlapCount = 0;
-
                         foreach (var pos in occupiedPositions)
                         {
                             if (matchPositions.Contains(pos))
-                                overlapCount++;
+                            {
+                                if (!matchedBlocks.Contains(block))
+                                    matchedBlocks.Add(block);
+                                break;
+                            }
                         }
-
-                        if (overlapCount > 0)
-                            matchedBlocks.Add(block);
                     }
 
                     if (matchedBlocks.Count < 2)
@@ -127,7 +137,6 @@ public class GridManager : MonoBehaviour
 
                     Debug.Log($"✅ MATCH FOUND: {ca} at positions {a}, {b}, {c}, {d}");
 
-                    // Destroy olan parçanın rengini bul
                     Material matchMaterial = null;
                     foreach (var block in matchedBlocks)
                     {
@@ -144,7 +153,6 @@ public class GridManager : MonoBehaviour
                             break;
                     }
 
-                    // Slot bul ve yeni blok spawn et
                     Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
                     if (emptySlot != null && matchMaterial != null)
                     {
@@ -152,7 +160,6 @@ public class GridManager : MonoBehaviour
                         SpawnBlock(GameScript.Instance.blockPrefab, new Vector3(a.x * cellSize, 0, a.y * cellSize), matchMaterial, emptySlot.transform);
                     }
 
-                    // --- Silme işlemleri ---
                     foreach (var block in matchedBlocks)
                     {
                         for (int i = block.blockData.Count - 1; i >= 0; i--)
@@ -170,26 +177,21 @@ public class GridManager : MonoBehaviour
                         }
                     }
 
-                    // Grid güncelle
-                    colorGrid.Clear();
-                    foreach (var block in allBlocks)
-                    {
-                        var positions = block.GetOccupiedGridPositions();
-                        for (int i = 0; i < positions.Length; i++)
-                        {
-                            colorGrid[positions[i]] = block.blockData[i].color;
-                        }
-                    }
+                    UpdateColorGridFromAll();
 
                     if (matchedBlocks.Count == 2)
                     {
                         Block blockA = matchedBlocks[0];
                         Block blockB = matchedBlocks[1];
+                        isMatchProcessing = true;  // <---- Eşleşme başladı, yer çekimi kapalı
                         StartCoroutine(MoveAndTransfer(blockA, blockB, 0.3f));
                     }
                 }
             }
         }
+
+        if (!isMatchProcessing)
+            ApplyGravityToEmptyBlocks();
     }
 
     public void SpawnBlock(GameObject blockPrefab, Vector3 position, Material mat, Transform slotTarget)
@@ -198,20 +200,18 @@ public class GridManager : MonoBehaviour
         newBlockObj.GetComponent<MeshRenderer>().material = mat;
         StartCoroutine(MoveBlockToSlot(newBlockObj.transform, slotTarget.position + new Vector3(0, 1, 0)));
     }
+
     private IEnumerator MoveBlockToSlot(Transform block, Vector3 targetPos, float duration = 0.5f, float arcHeight = 5f)
     {
         Vector3 startPos = block.position;
-
-        // Bezier kontrol noktaları
-        Vector3 controlPoint1 = startPos + Vector3.up * arcHeight; // yukarı çıkış
-        Vector3 controlPoint2 = targetPos + Vector3.up * arcHeight; // hedefin üstünden geçiş
-        Vector3 scale = new Vector3(.35f, .35f, .35f); // Ölçeklendirme
+        Vector3 controlPoint1 = startPos + Vector3.up * arcHeight;
+        Vector3 controlPoint2 = targetPos + Vector3.up * arcHeight;
+        Vector3 scale = new Vector3(.35f, .35f, .35f);
 
         float elapsed = 0f;
         while (elapsed < duration)
         {
             float t = elapsed / duration;
-            // Cubic Bezier hesaplama
             Vector3 m1 = Vector3.Lerp(startPos, controlPoint1, t);
             Vector3 m2 = Vector3.Lerp(controlPoint1, controlPoint2, t);
             Vector3 m3 = Vector3.Lerp(controlPoint2, targetPos, t);
@@ -220,7 +220,7 @@ public class GridManager : MonoBehaviour
             Vector3 m5 = Vector3.Lerp(m2, m3, t);
 
             block.position = Vector3.Lerp(m4, m5, t);
-            block.localScale = Vector3.Lerp(Vector3.one * .5f, scale, t); // Ölçeklendirme
+            block.localScale = Vector3.Lerp(Vector3.one * .5f, scale, t);
 
             elapsed += Time.deltaTime;
             yield return null;
@@ -228,7 +228,6 @@ public class GridManager : MonoBehaviour
 
         block.position = targetPos;
     }
-
 
     private IEnumerator MoveAndTransfer(Block blockA, Block blockB, float duration)
     {
@@ -241,10 +240,13 @@ public class GridManager : MonoBehaviour
 
         while (elapsed < duration)
         {
+            if (blockB == null) yield break;
             blockB.transform.position = Vector3.Lerp(startPos, targetPos, elapsed / duration);
             elapsed += Time.deltaTime;
             yield return null;
         }
+        if (blockB == null) yield break;
+
         blockB.transform.position = targetPos;
 
         List<BlockData> partsToMove = new List<BlockData>(blockB.blockData);
@@ -264,12 +266,17 @@ public class GridManager : MonoBehaviour
         }
         blockA.SetColliderActive(true);
 
+        UpdateColorGridFromAll();
+
+        isMatchProcessing = false; // <---- Eşleşme bitti, yer çekimi tekrar aktif
+
+        ApplyGravityToEmptyBlocks();
+
         if (IsSingleColor(blockA))
         {
             CheckForMatches();
         }
     }
-
 
     private bool IsSingleColor(Block block)
     {
@@ -285,4 +292,133 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
+    public List<(Vector2Int[], string)> GetBlockStates()
+    {
+        List<(Vector2Int[], string)> result = new List<(Vector2Int[], string)>();
+
+        for (int x = 0; x < width - 1; x += 2)
+        {
+            for (int y = 0; y < height - 1; y += 2)
+            {
+                Vector2Int a = new Vector2Int(x, y);
+                Vector2Int b = new Vector2Int(x, y + 1);
+                Vector2Int c = new Vector2Int(x + 1, y + 1);
+                Vector2Int d = new Vector2Int(x + 1, y);
+
+                bool hasA = colorGrid.ContainsKey(a);
+                bool hasB = colorGrid.ContainsKey(b);
+                bool hasC = colorGrid.ContainsKey(c);
+                bool hasD = colorGrid.ContainsKey(d);
+
+                string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
+                               (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
+
+                result.Add((new Vector2Int[] { a, b, c, d }, state));
+            }
+        }
+        return result;
+    }
+
+    public void DebugBlockStates()
+    {
+        Debug.Log("===== BLOK DURUMLARI =====");
+        var states = GetBlockStates();
+        foreach (var block in states)
+        {
+            var coords = block.Item1;
+            var state = block.Item2;
+            Debug.Log($"{coords[0].x},{coords[0].y} {coords[1].x},{coords[1].y} {coords[2].x},{coords[2].y} {coords[3].x},{coords[3].y} {state}");
+        }
+    }
+
+    public void ApplyGravityToEmptyBlocks()
+    {
+        var states = GetBlockStates();
+
+        foreach (var block in states)
+        {
+            if (block.Item2 == "Boş")
+            {
+                Vector2Int[] coords = block.Item1;
+                int minY = coords[0].y;
+                int x1 = coords[0].x;
+                int x2 = coords[2].x;
+
+                for (int y = minY + 2; y < height; y += 2)
+                {
+                    Vector2Int checkA = new Vector2Int(x1, y);
+                    Vector2Int checkB = new Vector2Int(x1, y + 1);
+                    Vector2Int checkC = new Vector2Int(x2, y + 1);
+                    Vector2Int checkD = new Vector2Int(x2, y);
+
+                    if (colorGrid.ContainsKey(checkA) || colorGrid.ContainsKey(checkB) ||
+                        colorGrid.ContainsKey(checkC) || colorGrid.ContainsKey(checkD))
+                    {
+                        StartCoroutine(MoveBlockDownSmooth(new Vector2Int[] { checkA, checkB, checkC, checkD }, cellSize * 2, 0.2f));
+                    }
+                }
+            }
+        }
+
+        UpdateColorGridFromAll();
+        DebugBlockStates();
+    }
+
+    private bool isMoving = false;
+
+    private IEnumerator MoveBlockDownSmooth(Vector2Int[] positions, float moveDistance, float duration)
+    {
+        if (isMoving || isMatchProcessing) yield break; // Aynı anda hareket veya eşleşme varken durdur
+
+        isMoving = true;
+
+        List<Block> blocksToMove = new List<Block>();
+
+        foreach (var block in allBlocks)
+        {
+            var occupied = block.GetOccupiedGridPositions();
+            bool matches = false;
+            foreach (var pos in occupied)
+            {
+                if (System.Array.Exists(positions, p => p == pos))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+            if (matches)
+                blocksToMove.Add(block);
+        }
+
+        float elapsed = 0f;
+        Vector3 moveVector = new Vector3(0, 0, -moveDistance);
+
+        Dictionary<Block, Vector3> startPositions = new Dictionary<Block, Vector3>();
+        foreach (var b in blocksToMove)
+        {
+            startPositions[b] = b.transform.position;
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            foreach (var b in blocksToMove)
+            {
+                if (b == null) continue;
+                b.transform.position = Vector3.Lerp(startPositions[b], startPositions[b] + moveVector, t);
+            }
+
+            yield return null;
+        }
+
+        foreach (var b in blocksToMove)
+        {
+            if (b == null) continue;
+            b.transform.position = startPositions[b] + moveVector;
+        }
+
+        isMoving = false;
+    }
 }

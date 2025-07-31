@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
 public class Block : MonoBehaviour
 {
     public List<BlockData> blockData = new List<BlockData>();
@@ -76,12 +75,12 @@ public class Block : MonoBehaviour
             int x = Mathf.FloorToInt(worldPos.x / cellSize);
             int z = Mathf.FloorToInt(worldPos.z / cellSize);
 
-            Vector2Int gridPos = new Vector2Int(x, z);
-            occupiedPositions.Add(gridPos);
+            occupiedPositions.Add(new Vector2Int(x, z));
         }
         return occupiedPositions.ToArray();
     }
 }
+
 
 
 [Serializable]

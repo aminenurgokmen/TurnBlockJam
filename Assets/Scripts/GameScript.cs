@@ -6,6 +6,7 @@ public class GameScript : MonoBehaviour
 {
     public static GameScript Instance;
     public Material[] materials;
+    public GameObject blockPrefab;
     private void Awake()
     {
         if (Instance == null)

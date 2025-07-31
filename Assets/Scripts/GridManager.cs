@@ -58,10 +58,18 @@ public class GridManager : MonoBehaviour
                 singleColorBlocks.Add(block);
         }
 
-        // Tek renk blokları yok et
+        // Tek renk blokları yok etmeden önce slot’a gönder
         foreach (var block in singleColorBlocks)
         {
             Debug.Log($"🎯 Single Color Auto-Match: {block.blockData[0].color}");
+            Material matchMaterial = block.blockData[0].part.GetComponent<MeshRenderer>().material;
+            Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
+            if (emptySlot != null)
+            {
+                emptySlot.Occupy();
+                SpawnBlock(GameScript.Instance.blockPrefab, block.transform.position, matchMaterial, emptySlot.transform);
+            }
+
             foreach (var partData in block.blockData)
             {
                 Vector2Int pos = block.GetOccupiedGridPositions()[0];
@@ -69,9 +77,12 @@ public class GridManager : MonoBehaviour
                     colorGrid.Remove(pos);
                 Destroy(partData.part);
             }
+
             allBlocks.Remove(block);
             Destroy(block.gameObject);
         }
+
+
         for (int x = 0; x < width - 1; x++)
         {
             for (int y = 0; y < height - 1; y++)
@@ -89,11 +100,10 @@ public class GridManager : MonoBehaviour
                     ColorType cc = colorGrid[c];
                     ColorType cd = colorGrid[d];
 
-                    // Renkler aynı değilse zaten match yok
+                    // Renkler aynı değilse match yok
                     if (!(ca == cb && cb == cc && cc == cd))
                         continue;
 
-                    // --- Bütünlük kontrolü ---
                     List<Vector2Int> matchPositions = new List<Vector2Int> { a, b, c, d };
                     List<Block> matchedBlocks = new List<Block>();
 
@@ -112,11 +122,35 @@ public class GridManager : MonoBehaviour
                             matchedBlocks.Add(block);
                     }
 
-                    // Eğer 4 hücre en az 2 farklı bloktan gelmiyorsa match iptal
                     if (matchedBlocks.Count < 2)
                         continue;
 
                     Debug.Log($"✅ MATCH FOUND: {ca} at positions {a}, {b}, {c}, {d}");
+
+                    // Destroy olan parçanın rengini bul
+                    Material matchMaterial = null;
+                    foreach (var block in matchedBlocks)
+                    {
+                        var positions = block.GetOccupiedGridPositions();
+                        for (int i = 0; i < positions.Length; i++)
+                        {
+                            if (matchPositions.Contains(positions[i]))
+                            {
+                                matchMaterial = block.blockData[i].part.GetComponent<MeshRenderer>().material;
+                                break;
+                            }
+                        }
+                        if (matchMaterial != null)
+                            break;
+                    }
+
+                    // Slot bul ve yeni blok spawn et
+                    Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
+                    if (emptySlot != null && matchMaterial != null)
+                    {
+                        emptySlot.Occupy();
+                        SpawnBlock(GameScript.Instance.blockPrefab, new Vector3(a.x * cellSize, 0, a.y * cellSize), matchMaterial, emptySlot.transform);
+                    }
 
                     // --- Silme işlemleri ---
                     foreach (var block in matchedBlocks)
@@ -147,7 +181,6 @@ public class GridManager : MonoBehaviour
                         }
                     }
 
-                    // 2 blok varsa birleştir
                     if (matchedBlocks.Count == 2)
                     {
                         Block blockA = matchedBlocks[0];
@@ -157,6 +190,43 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void SpawnBlock(GameObject blockPrefab, Vector3 position, Material mat, Transform slotTarget)
+    {
+        var newBlockObj = Instantiate(blockPrefab, position, Quaternion.identity);
+        newBlockObj.GetComponent<MeshRenderer>().material = mat;
+        StartCoroutine(MoveBlockToSlot(newBlockObj.transform, slotTarget.position + new Vector3(0, 1, 0)));
+    }
+    private IEnumerator MoveBlockToSlot(Transform block, Vector3 targetPos, float duration = 0.5f, float arcHeight = 5f)
+    {
+        Vector3 startPos = block.position;
+
+        // Bezier kontrol noktaları
+        Vector3 controlPoint1 = startPos + Vector3.up * arcHeight; // yukarı çıkış
+        Vector3 controlPoint2 = targetPos + Vector3.up * arcHeight; // hedefin üstünden geçiş
+        Vector3 scale = new Vector3(.35f, .35f, .35f); // Ölçeklendirme
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            // Cubic Bezier hesaplama
+            Vector3 m1 = Vector3.Lerp(startPos, controlPoint1, t);
+            Vector3 m2 = Vector3.Lerp(controlPoint1, controlPoint2, t);
+            Vector3 m3 = Vector3.Lerp(controlPoint2, targetPos, t);
+
+            Vector3 m4 = Vector3.Lerp(m1, m2, t);
+            Vector3 m5 = Vector3.Lerp(m2, m3, t);
+
+            block.position = Vector3.Lerp(m4, m5, t);
+            block.localScale = Vector3.Lerp(Vector3.one * .5f, scale, t); // Ölçeklendirme
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        block.position = targetPos;
     }
 
 
@@ -214,4 +284,5 @@ public class GridManager : MonoBehaviour
         }
         return true;
     }
+
 }

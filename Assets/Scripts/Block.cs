@@ -102,5 +102,7 @@ public enum ColorType
     Red,
     Green,
     Blue,
-    Yellow
+    Yellow,
+    Purple,
+    Orange
 }

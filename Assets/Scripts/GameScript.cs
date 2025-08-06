@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Unity.VisualStudio.Editor;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class GameScript : MonoBehaviour
@@ -8,7 +9,6 @@ public class GameScript : MonoBehaviour
     public float moveSpeed = 5f;
     public static GameScript Instance;
     public Material[] materials;
-    public GameObject blockPrefab;
 
     public List<Target> targets;
     public List<TargetScript> targetScripts;
@@ -19,6 +19,14 @@ public class GameScript : MonoBehaviour
     void Start()
     {
             SetupTargets();
+    }
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            Debug.Break();
+        }
+        // Handle game logic here
     }
     public void SetupTargets()
     {
@@ -42,10 +50,7 @@ public class GameScript : MonoBehaviour
     {
         return materials[(int)color];
     }
-    void Update()
-    {
 
-    }
     public void Collected(Material mat, Vector3 pos)
     {
         int colorIdx = System.Array.IndexOf(materials, mat);

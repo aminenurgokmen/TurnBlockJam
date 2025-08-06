@@ -161,7 +161,7 @@ public class GridManager : MonoBehaviour
                         if (matchMaterial != null)
                             break;
                     }
-                    GameScript.Instance.Collected(matchMaterial, new Vector3(a.x * cellSize, 0, a.y * cellSize));
+                    GameScript.Instance.Collected(matchMaterial, new Vector3((a.x * cellSize)+1, 0, (a.y * cellSize)+1));
 
                    // Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
                    // if (emptySlot != null && matchMaterial != null)

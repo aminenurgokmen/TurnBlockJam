@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class GameScript : MonoBehaviour
 {
+    public float moveSpeed = 5f;
     public static GameScript Instance;
     public Material[] materials;
     public GameObject blockPrefab;
@@ -21,8 +22,11 @@ public class GameScript : MonoBehaviour
 
     public Material AssignMaterial(ColorType color)
     {
-       return materials[(int)color];
+        return materials[(int)color];
     }
-    
-   
+    void Update()
+    {
+        
+    }
+
 }

@@ -4,12 +4,23 @@ using UnityEngine;
 
 public class NewBlockScript : MonoBehaviour
 {
-    public GameObject blockPrefab;
-    public int numberOfBlocks = 10;
-    public float spacing = 1.5f;
+    public int newBlockColor;
+    public Slot originSlot;
 
     void Start()
     {
-        
+        TargetManager.Instance.RegisterNewBlock(this);
+
+        Material currentMat = transform.GetChild(0).GetComponent<MeshRenderer>().sharedMaterial;
+
+        for (int i = 0; i < GameScript.Instance.materials.Length; i++)
+        {
+            if (GameScript.Instance.materials[i] == currentMat)
+            {
+                newBlockColor = i;
+                break;
+            }
+        }
+
     }
 }

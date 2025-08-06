@@ -85,12 +85,12 @@ public class GridManager : MonoBehaviour
         {
             Debug.Log($"🎯 Single Color Auto-Match: {block.blockData[0].color}");
             Material matchMaterial = block.blockData[0].part.GetComponent<MeshRenderer>().material;
-            Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
-            if (emptySlot != null)
-            {
-                emptySlot.Occupy();
-                SpawnBlock(GameScript.Instance.blockPrefab, block.transform.position, matchMaterial, emptySlot.transform);
-            }
+          // Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
+          // if (emptySlot != null)
+          // {
+          //     emptySlot.Occupy();
+          //     SpawnBlock(GameScript.Instance.blockPrefab, block.transform.position, matchMaterial, emptySlot.transform);
+          // }
 
             foreach (var partData in block.blockData)
             {
@@ -161,14 +161,15 @@ public class GridManager : MonoBehaviour
                         if (matchMaterial != null)
                             break;
                     }
+                    GameScript.Instance.Collected(matchMaterial, new Vector3(a.x * cellSize, 0, a.y * cellSize));
 
-                    Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
-                    if (emptySlot != null && matchMaterial != null)
-                    {
-                        emptySlot.Occupy();
-                        SpawnBlock(GameScript.Instance.blockPrefab, new Vector3(a.x * cellSize, 0, a.y * cellSize), matchMaterial, emptySlot.transform);
-                    }
-
+                   // Slot emptySlot = SlotManager.Instance.GetNextEmptySlot();
+                   // if (emptySlot != null && matchMaterial != null)
+                   // {
+                   //     emptySlot.Occupy();
+                   //     SpawnBlock(GameScript.Instance.blockPrefab, new Vector3(a.x * cellSize, 0, a.y * cellSize), matchMaterial, emptySlot.transform);
+                   // }
+//
 
                     foreach (var block in matchedBlocks)
                     {
@@ -203,7 +204,6 @@ public class GridManager : MonoBehaviour
         if (!isMatchProcessing)
             ApplyGravityToEmptyBlocks();
 
-        TargetManager.Instance.MoveMatchingCubesToTargets();
     }
 
     public void SpawnBlock(GameObject blockPrefab, Vector3 position, Material mat, Transform slotTarget)
@@ -211,18 +211,18 @@ public class GridManager : MonoBehaviour
         var newBlockObj = Instantiate(blockPrefab, position, Quaternion.identity);
         newBlockObj.transform.GetChild(0).GetComponent<MeshRenderer>().material = mat;
 
-        NewBlockScript nbs = newBlockObj.GetComponent<NewBlockScript>();
-        if (nbs != null)
-        {
-            TargetManager.Instance.RegisterNewBlock(nbs);
-
-            // Slot bilgisini kaydet
-            Slot slot = slotTarget.GetComponent<Slot>();
-            if (slot != null)
-                nbs.originSlot = slot;
-        }
-
-        StartCoroutine(MoveBlockToSlot(newBlockObj.transform, new Vector3(30, 0, 0), slotTarget.position + new Vector3(0, 1, 0)));
+       // NewBlockScript nbs = newBlockObj.GetComponent<NewBlockScript>();
+       // if (nbs != null)
+       // {
+       //     //TargetManager.Instance.RegisterNewBlock(nbs);
+//
+       //     // Slot bilgisini kaydet
+       //     Slot slot = slotTarget.GetComponent<Slot>();
+       //     if (slot != null)
+       //         nbs.originSlot = slot;
+       // }
+//
+       // StartCoroutine(MoveBlockToSlot(newBlockObj.transform, new Vector3(30, 0, 0), slotTarget.position + new Vector3(0, 1, 0)));
     }
 
 

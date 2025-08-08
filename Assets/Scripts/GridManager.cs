@@ -115,82 +115,82 @@ public class GridManager : MonoBehaviour
                 Vector2Int c = new Vector2Int(x, y + 1);
                 Vector2Int d = new Vector2Int(x + 1, y + 1);
 
-              if (colorGrid.ContainsKey(a) && colorGrid.ContainsKey(b) &&
-    colorGrid.ContainsKey(c) && colorGrid.ContainsKey(d))
-{
-    ColorType ca = colorGrid[a];
-    ColorType cb = colorGrid[b];
-    ColorType cc = colorGrid[c];
-    ColorType cd = colorGrid[d];
+                if (colorGrid.ContainsKey(a) && colorGrid.ContainsKey(b) &&
+      colorGrid.ContainsKey(c) && colorGrid.ContainsKey(d))
+                {
+                    ColorType ca = colorGrid[a];
+                    ColorType cb = colorGrid[b];
+                    ColorType cc = colorGrid[c];
+                    ColorType cd = colorGrid[d];
 
-    if (!(ca == cb && cb == cc && cc == cd))
-        continue;
+                    if (!(ca == cb && cb == cc && cc == cd))
+                        continue;
 
-    List<Vector2Int> matchPositions = new List<Vector2Int> { a, b, c, d };
-    HashSet<Block> involvedBlocks = new HashSet<Block>();
+                    List<Vector2Int> matchPositions = new List<Vector2Int> { a, b, c, d };
+                    HashSet<Block> involvedBlocks = new HashSet<Block>();
 
-    foreach (var block in allBlocks)
-    {
-        var occupiedPositions = block.GetOccupiedGridPositions();
-        foreach (var pos in occupiedPositions)
-        {
-            if (matchPositions.Contains(pos))
-            {
-                involvedBlocks.Add(block);
-                break;
-            }
-        }
-    }
+                    foreach (var block in allBlocks)
+                    {
+                        var occupiedPositions = block.GetOccupiedGridPositions();
+                        foreach (var pos in occupiedPositions)
+                        {
+                            if (matchPositions.Contains(pos))
+                            {
+                                involvedBlocks.Add(block);
+                                break;
+                            }
+                        }
+                    }
 
-    if (involvedBlocks.Count != 2)
-        continue; // ❌ 2 bloktan farklıysa match sayma
+                    if (involvedBlocks.Count != 2)
+                        continue; // ❌ 2 bloktan farklıysa match sayma
 
-    Debug.Log($"✅ MATCH FOUND between 2 blocks at {a}, {b}, {c}, {d}");
+                    Debug.Log($"✅ MATCH FOUND between 2 blocks at {a}, {b}, {c}, {d}");
 
-    // Devam: matchMaterial bul, parçaları sil vs.
-    Material matchMaterial = null;
-    foreach (var block in involvedBlocks)
-    {
-        var positions = block.GetOccupiedGridPositions();
-        for (int i = 0; i < positions.Length; i++)
-        {
-            if (matchPositions.Contains(positions[i]))
-            {
-                matchMaterial = block.blockData[i].part.GetComponent<MeshRenderer>().sharedMaterial;
-                break;
-            }
-        }
-        if (matchMaterial != null)
-            break;
-    }
+                    // Devam: matchMaterial bul, parçaları sil vs.
+                    Material matchMaterial = null;
+                    foreach (var block in involvedBlocks)
+                    {
+                        var positions = block.GetOccupiedGridPositions();
+                        for (int i = 0; i < positions.Length; i++)
+                        {
+                            if (matchPositions.Contains(positions[i]))
+                            {
+                                matchMaterial = block.blockData[i].part.GetComponent<MeshRenderer>().sharedMaterial;
+                                break;
+                            }
+                        }
+                        if (matchMaterial != null)
+                            break;
+                    }
 
-    GameScript.Instance.Collected(matchMaterial, new Vector3((a.x * cellSize) + 1, 0, (a.y * cellSize) + 1));
+                    GameScript.Instance.Collected(matchMaterial, new Vector3((a.x * cellSize) + 1, 0, (a.y * cellSize) + 1));
 
-    foreach (var block in involvedBlocks)
-    {
-        for (int i = block.blockData.Count - 1; i >= 0; i--)
-        {
-            Vector2Int pos = block.GetOccupiedGridPositions()[i];
-            if (matchPositions.Contains(pos))
-            {
-                if (colorGrid.ContainsKey(pos))
-                    colorGrid.Remove(pos);
+                    foreach (var block in involvedBlocks)
+                    {
+                        for (int i = block.blockData.Count - 1; i >= 0; i--)
+                        {
+                            Vector2Int pos = block.GetOccupiedGridPositions()[i];
+                            if (matchPositions.Contains(pos))
+                            {
+                                if (colorGrid.ContainsKey(pos))
+                                    colorGrid.Remove(pos);
 
-                GameObject part = block.blockData[i].part;
-                block.blockData.RemoveAt(i);
-                Destroy(part);
-            }
-        }
-    }
+                                GameObject part = block.blockData[i].part;
+                                block.blockData.RemoveAt(i);
+                                Destroy(part);
+                            }
+                        }
+                    }
 
-    UpdateColorGridFromAll();
+                    UpdateColorGridFromAll();
 
-    // Sadece 2 blok olduğundan garanti
-    Block[] blocks = new Block[2];
-    involvedBlocks.CopyTo(blocks);
-    isMatchProcessing = true;
-    StartCoroutine(MoveAndTransfer(blocks[0], blocks[1], 0.3f));
-}
+                    // Sadece 2 blok olduğundan garanti
+                    Block[] blocks = new Block[2];
+                    involvedBlocks.CopyTo(blocks);
+                    isMatchProcessing = true;
+                    StartCoroutine(MoveAndTransfer(blocks[0], blocks[1], 0.3f));
+                }
 
             }
         }
@@ -264,73 +264,87 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
-  public void DebugTopTwoRowsSlidingBlocks()
-{
-    // Grid'i aşağıdan yukarıya kontrol et (rowY1 alt satır, rowY2 üst satır)
-    for (int rowY1 = 0; rowY1 < height - 1; rowY1++)
+    public void DebugTopTwoRowsSlidingBlocks()
     {
-        int rowY2 = rowY1 + 1;
-
-        for (int x = 0; x < width - 1; x += 2)
+        // Sadece y çiftleri: 01, 23, 45, ...
+        for (int rowY1 = 0; rowY1 < height - 1; rowY1 += 2)
         {
-            Vector2Int a = new Vector2Int(x, rowY2);     // üst sol
-            Vector2Int b = new Vector2Int(x + 1, rowY2); // üst sağ
-            Vector2Int c = new Vector2Int(x, rowY1);     // alt sol
-            Vector2Int d = new Vector2Int(x + 1, rowY1); // alt sağ
+            int rowY2 = rowY1 + 1;
 
-            bool hasA = colorGrid.ContainsKey(a);
-            bool hasB = colorGrid.ContainsKey(b);
-            bool hasC = colorGrid.ContainsKey(c);
-            bool hasD = colorGrid.ContainsKey(d);
-
-            string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
-                           (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
-
-            Debug.Log($"{a.x}{a.y} {b.x}{b.y} {c.x}{c.y} {d.x}{d.y} => {state}");
-
-            if (state == "Boş")
+            for (int x = 0; x < width - 1; x += 2)
             {
-                // Hedef konum: bu 2x2 bloğun merkezi
-                Vector3 spawnTarget = new Vector3(x + 1f, 0, rowY1 + 1f) * cellSize;
+                Vector2Int a = new Vector2Int(x, rowY2);     // üst sol
+                Vector2Int b = new Vector2Int(x + 1, rowY2); // üst sağ
+                Vector2Int c = new Vector2Int(x, rowY1);     // alt sol
+                Vector2Int d = new Vector2Int(x + 1, rowY1); // alt sağ
 
-                // Spawn pozisyonu: ekranın üstünde yukarıda bir yer (örnek: grid'in üstünden 2 birim yukarı)
-                float spawnHeight = (height + 2); // 2 birim üstten başlat
-                Vector3 spawnStart = new Vector3(x + 1f, 0, spawnHeight) * cellSize;
+                bool hasA = colorGrid.ContainsKey(a);
+                bool hasB = colorGrid.ContainsKey(b);
+                bool hasC = colorGrid.ContainsKey(c);
+                bool hasD = colorGrid.ContainsKey(d);
 
-                GameObject newBlockObj = Instantiate(GameScript.Instance.blockPrefab, spawnStart, Quaternion.identity);
-                Block newBlock = newBlockObj.GetComponent<Block>();
+                string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
+                               (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
 
-                if (newBlock != null)
+                Debug.Log($"{a.x}{a.y} {b.x}{b.y} {c.x}{c.y} {d.x}{d.y} => {state}");
+
+                if (state == "Boş")
                 {
-                    RegisterBlock(newBlock);
-                    StartCoroutine(MoveBlockToPosition(newBlockObj.transform, spawnTarget, 0.5f));
-                    return; // ❗ İlk boş yere spawn ettik, çık (çünkü sadece bir tane spawn edilecek)
-                }
-                else
-                {
-                    Debug.LogError("blockPrefab üzerinde Block component bulunamadı!");
+                    // Hedef konum: bu 2x2 bloğun merkezi
+                    Vector3 spawnTarget = new Vector3(x + 1f, 0, rowY1 + 1f) * cellSize;
+
+                    // Spawn pozisyonu: ekranın üstünde yukarıda bir yer (örnek: grid'in üstünden 2 birim yukarı)
+                    float spawnHeight = (height + 2);
+                    Vector3 spawnStart = new Vector3(x + 1f, 0, spawnHeight) * cellSize;
+
+                    GameObject newBlockObj = Instantiate(GameScript.Instance.blockPrefab, spawnStart, Quaternion.identity);
+                    Block newBlock = newBlockObj.GetComponent<Block>();
+
+                    if (newBlock != null)
+                    {
+                        RegisterBlock(newBlock);
+                        Vector2Int gridPos = new Vector2Int(x + 1, rowY1 + 1);
+                        Vector3 expectedWorld = new Vector3(gridPos.x, 0, gridPos.y) * cellSize;
+
+                        Debug.Log($"Yeni blok yerleştirildi → GridPos: {gridPos}, CellSize: {cellSize}, WorldPos: {expectedWorld}");
+
+                        StartCoroutine(MoveBlockToPosition(newBlockObj.transform, spawnTarget, 0.5f));
+
+                        return; // Sadece bir blok spawn et
+                    }
+                    else
+                    {
+                        Debug.LogError("blockPrefab üzerinde Block component bulunamadı!");
+                    }
                 }
             }
         }
+
+        Debug.Log("Hiçbir boş 2x2 alan bulunamadı.");
     }
 
-    Debug.Log("Hiçbir boş 2x2 alan bulunamadı.");
-}
 
-    private IEnumerator MoveBlockToPosition(Transform blockTransform, Vector3 targetPos, float duration)
+   private IEnumerator MoveBlockToPosition(Transform blockTransform, Vector3 targetPos, float duration)
+{
+    Vector3 startPos = blockTransform.position;
+    float elapsed = 0f;
+
+    while (Vector3.Distance(blockTransform.position, targetPos) > 0.001f)
     {
-        Vector3 startPos = blockTransform.position;
-        float elapsed = 0f;
+        // Zamanla artış
+        elapsed += Time.deltaTime;
+        float t = Mathf.Clamp01(elapsed / duration);
 
-        while (elapsed < duration)
-        {
-            blockTransform.position = Vector3.Lerp(startPos, targetPos, elapsed / duration);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-Debug.Log("Block position set to: " + targetPos);
-        blockTransform.position = targetPos;
+        // Pozisyonu güncelle
+        blockTransform.position = Vector3.Lerp(startPos, targetPos, t);
+
+        yield return null;
     }
+
+    // Son pozisyonu kesin olarak hedefe ayarla
+    blockTransform.position = targetPos;
+    Debug.Log("Block final position set to: " + targetPos);
+}
 
 
 

@@ -14,6 +14,8 @@ public class GridManager : MonoBehaviour
 
     public bool isMatchProcessing = false;
     private bool isMoving = false;
+    private bool isSpawning = false;
+
 
     private void Awake()
     {
@@ -32,18 +34,39 @@ public class GridManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.O))
+        if (!isMatchProcessing && !isMoving && !isSpawning)
         {
-            DebugTopTwoRowsSlidingBlocks();
+            StartCoroutine(SpawnIfEmptyBlockExists());
         }
-        {
 
-        }
 
         if (!isMatchProcessing)
             ApplyGravityToEmptyBlocks();
     }
 
+
+private IEnumerator SpawnIfEmptyBlockExists()
+{
+    isSpawning = true;
+
+    yield return new WaitForSeconds(0.1f); // küçük gecikme
+
+    bool spawned = DebugTopTwoRowsSlidingBlocks(); // Artık bool döndürüyor
+
+    if (!spawned)
+    {
+        // Spawn yapılmadıysa tekrar denemeye gerek yok
+        isSpawning = false;
+        yield break;
+    }
+
+    // Spawn olduysa, yerçekimi vs. oturmasını bekle
+    yield return new WaitForSeconds(0.6f); // Spawn animasyonu vs
+
+   // ApplyGravityToEmptyBlocks(); // opsiyonel, burada da çağrılabilir
+
+    isSpawning = false;
+}
 
 
 
@@ -198,6 +221,10 @@ public class GridManager : MonoBehaviour
         if (!isMatchProcessing)
             ApplyGravityToEmptyBlocks();
 
+
+        //  DebugTopTwoRowsSlidingBlocks();
+
+
     }
 
 
@@ -264,87 +291,72 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
-    public void DebugTopTwoRowsSlidingBlocks()
+    public bool DebugTopTwoRowsSlidingBlocks()
+{
+    for (int rowY1 = 0; rowY1 < height - 1; rowY1 += 2)
     {
-        // Sadece y çiftleri: 01, 23, 45, ...
-        for (int rowY1 = 0; rowY1 < height - 1; rowY1 += 2)
+        int rowY2 = rowY1 + 1;
+
+        for (int x = 0; x < width - 1; x += 2)
         {
-            int rowY2 = rowY1 + 1;
+            Vector2Int a = new Vector2Int(x, rowY2);     // üst sol
+            Vector2Int b = new Vector2Int(x + 1, rowY2); // üst sağ
+            Vector2Int c = new Vector2Int(x, rowY1);     // alt sol
+            Vector2Int d = new Vector2Int(x + 1, rowY1); // alt sağ
 
-            for (int x = 0; x < width - 1; x += 2)
+            bool hasA = colorGrid.ContainsKey(a);
+            bool hasB = colorGrid.ContainsKey(b);
+            bool hasC = colorGrid.ContainsKey(c);
+            bool hasD = colorGrid.ContainsKey(d);
+
+            string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
+                           (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
+
+            if (state == "Boş")
             {
-                Vector2Int a = new Vector2Int(x, rowY2);     // üst sol
-                Vector2Int b = new Vector2Int(x + 1, rowY2); // üst sağ
-                Vector2Int c = new Vector2Int(x, rowY1);     // alt sol
-                Vector2Int d = new Vector2Int(x + 1, rowY1); // alt sağ
+                Vector3 spawnTarget = new Vector3(x + 1f, 0, rowY1 + 1f) * cellSize;
+                float spawnHeight = (height + 2);
+                Vector3 spawnStart = new Vector3(x + 1f, 0, spawnHeight) * cellSize;
 
-                bool hasA = colorGrid.ContainsKey(a);
-                bool hasB = colorGrid.ContainsKey(b);
-                bool hasC = colorGrid.ContainsKey(c);
-                bool hasD = colorGrid.ContainsKey(d);
+                GameObject newBlockObj = Instantiate(GameScript.Instance.blockPrefab, spawnStart, Quaternion.identity);
+                Block newBlock = newBlockObj.GetComponent<Block>();
 
-                string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
-                               (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
-
-                Debug.Log($"{a.x}{a.y} {b.x}{b.y} {c.x}{c.y} {d.x}{d.y} => {state}");
-
-                if (state == "Boş")
+                if (newBlock != null)
                 {
-                    // Hedef konum: bu 2x2 bloğun merkezi
-                    Vector3 spawnTarget = new Vector3(x + 1f, 0, rowY1 + 1f) * cellSize;
-
-                    // Spawn pozisyonu: ekranın üstünde yukarıda bir yer (örnek: grid'in üstünden 2 birim yukarı)
-                    float spawnHeight = (height + 2);
-                    Vector3 spawnStart = new Vector3(x + 1f, 0, spawnHeight) * cellSize;
-
-                    GameObject newBlockObj = Instantiate(GameScript.Instance.blockPrefab, spawnStart, Quaternion.identity);
-                    Block newBlock = newBlockObj.GetComponent<Block>();
-
-                    if (newBlock != null)
-                    {
-                        RegisterBlock(newBlock);
-                        Vector2Int gridPos = new Vector2Int(x + 1, rowY1 + 1);
-                        Vector3 expectedWorld = new Vector3(gridPos.x, 0, gridPos.y) * cellSize;
-
-                        Debug.Log($"Yeni blok yerleştirildi → GridPos: {gridPos}, CellSize: {cellSize}, WorldPos: {expectedWorld}");
-
-                        StartCoroutine(MoveBlockToPosition(newBlockObj.transform, spawnTarget, 0.5f));
-
-                        return; // Sadece bir blok spawn et
-                    }
-                    else
-                    {
-                        Debug.LogError("blockPrefab üzerinde Block component bulunamadı!");
-                    }
+                    RegisterBlock(newBlock);
+                    StartCoroutine(MoveBlockToPosition(newBlockObj.transform, spawnTarget, 0.5f));
+                    return true; // ✅ Spawn yapıldı
                 }
             }
         }
-
-        Debug.Log("Hiçbir boş 2x2 alan bulunamadı.");
     }
 
-
-   private IEnumerator MoveBlockToPosition(Transform blockTransform, Vector3 targetPos, float duration)
-{
-    Vector3 startPos = blockTransform.position;
-    float elapsed = 0f;
-
-    while (Vector3.Distance(blockTransform.position, targetPos) > 0.001f)
-    {
-        // Zamanla artış
-        elapsed += Time.deltaTime;
-        float t = Mathf.Clamp01(elapsed / duration);
-
-        // Pozisyonu güncelle
-        blockTransform.position = Vector3.Lerp(startPos, targetPos, t);
-
-        yield return null;
-    }
-
-    // Son pozisyonu kesin olarak hedefe ayarla
-    blockTransform.position = targetPos;
-    Debug.Log("Block final position set to: " + targetPos);
+    return false; // ❌ Hiçbir boşluk bulunamadı
 }
+
+
+
+    private IEnumerator MoveBlockToPosition(Transform blockTransform, Vector3 targetPos, float duration)
+    {
+        Vector3 startPos = blockTransform.position;
+        float elapsed = 0f;
+
+        while (Vector3.Distance(blockTransform.position, targetPos) > 0.001f)
+        {
+            // Zamanla artış
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            // Pozisyonu güncelle
+            blockTransform.position = Vector3.Lerp(startPos, targetPos, t);
+
+            yield return null;
+        }
+
+        // Son pozisyonu kesin olarak hedefe ayarla
+        blockTransform.position = targetPos;
+        Debug.Log("Block final position set to: " + targetPos);
+    }
 
 
 
@@ -439,6 +451,7 @@ public class GridManager : MonoBehaviour
         }
 
         UpdateColorGridFromAll();
+
         // DebugBlockStates();
     }
 

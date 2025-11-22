@@ -36,10 +36,14 @@ public class Block : MonoBehaviour
     }
 
     private void OnMouseDown()
+{
+    if (!isRotating)
     {
-        if (!isRotating)
-            StartCoroutine(RotateBlock());
+            NeighbourGrids();
+        StartCoroutine(RotateBlock());
     }
+}
+
 
     private IEnumerator RotateBlock()
     {
@@ -79,7 +83,41 @@ public class Block : MonoBehaviour
         }
         return occupiedPositions.ToArray();
     }
+    public void NeighbourGrids()
+    {
+        Vector2Int[] occupied = GetOccupiedGridPositions();
+        Dictionary<Vector2Int, ColorType> grid = GridManager.Instance.GetColorGrid(); 
+
+        foreach (var pos in occupied)
+        {
+            Debug.Log($"🟩 Block parçası: {pos}");
+
+            Vector2Int[] directions = new Vector2Int[]
+            {
+            Vector2Int.up,
+            Vector2Int.down,
+            Vector2Int.left,
+            Vector2Int.right
+            };
+
+            foreach (var dir in directions)
+            {
+                Vector2Int neighborPos = pos + dir;
+                if (grid.TryGetValue(neighborPos, out ColorType color))
+                {
+                    Debug.Log($" {name}🔸 Komşu var → Pos: {neighborPos}, Color: {color}");
+                }
+                else
+                {
+                    Debug.Log($"{name}  Komşu boş → Pos: {neighborPos}");
+                }
+            }
+        }
+    }
+
 }
+
+
 
 
 

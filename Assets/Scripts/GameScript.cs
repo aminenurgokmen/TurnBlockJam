@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using Microsoft.Unity.VisualStudio.Editor;
 using UnityEngine;
 
@@ -12,6 +13,7 @@ public class GameScript : MonoBehaviour
 
     public List<Target> targets;
     public List<TargetScript> targetScripts;
+    public List<ColorType> levelColors;
     private void Awake()
     {
         Instance = this;

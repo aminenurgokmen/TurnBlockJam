@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
+using JetBrains.Annotations;
 
 public class GridManager : MonoBehaviour
 {
@@ -15,6 +16,7 @@ public class GridManager : MonoBehaviour
     public bool isMatchProcessing = false;
     private bool isMoving = false;
     private bool isSpawning = false;
+
 
 
     private void Awake()
@@ -45,28 +47,28 @@ public class GridManager : MonoBehaviour
     }
 
 
-private IEnumerator SpawnIfEmptyBlockExists()
-{
-    isSpawning = true;
-
-    yield return new WaitForSeconds(0.1f); // küçük gecikme
-
-    bool spawned = DebugTopTwoRowsSlidingBlocks(); // Artık bool döndürüyor
-
-    if (!spawned)
+    private IEnumerator SpawnIfEmptyBlockExists()
     {
-        // Spawn yapılmadıysa tekrar denemeye gerek yok
+        isSpawning = true;
+
+        yield return new WaitForSeconds(0.1f); // küçük gecikme
+
+        bool spawned = DebugTopTwoRowsSlidingBlocks(); // Artık bool döndürüyor
+
+        if (!spawned)
+        {
+            // Spawn yapılmadıysa tekrar denemeye gerek yok
+            isSpawning = false;
+            yield break;
+        }
+
+        // Spawn olduysa, yerçekimi vs. oturmasını bekle
+        yield return new WaitForSeconds(0.1f); // Spawn animasyonu vs
+
+        // ApplyGravityToEmptyBlocks(); // opsiyonel, burada da çağrılabilir
+
         isSpawning = false;
-        yield break;
     }
-
-    // Spawn olduysa, yerçekimi vs. oturmasını bekle
-    yield return new WaitForSeconds(0.6f); // Spawn animasyonu vs
-
-   // ApplyGravityToEmptyBlocks(); // opsiyonel, burada da çağrılabilir
-
-    isSpawning = false;
-}
 
 
 
@@ -212,7 +214,7 @@ private IEnumerator SpawnIfEmptyBlockExists()
                     Block[] blocks = new Block[2];
                     involvedBlocks.CopyTo(blocks);
                     isMatchProcessing = true;
-                    StartCoroutine(MoveAndTransfer(blocks[0], blocks[1], 0.3f));
+                    StartCoroutine(MoveAndTransfer(blocks[0], blocks[1], 0.2f));
                 }
 
             }
@@ -259,10 +261,10 @@ private IEnumerator SpawnIfEmptyBlockExists()
         allBlocks.Remove(blockB);
         Destroy(blockB.gameObject);
 
-        for (int i = 0; i < blockA.blockData.Count; i++)
-        {
-            blockA.blockData[i].part.name = $"{i + 1}";
-        }
+       // for (int i = 0; i < blockA.blockData.Count; i++)
+       // {
+       //     blockA.blockData[i].part.name = $"{i + 1}";
+       // }
         blockA.SetColliderActive(true);
 
         UpdateColorGridFromAll();
@@ -292,47 +294,60 @@ private IEnumerator SpawnIfEmptyBlockExists()
     }
 
     public bool DebugTopTwoRowsSlidingBlocks()
-{
-    for (int rowY1 = 0; rowY1 < height - 1; rowY1 += 2)
     {
-        int rowY2 = rowY1 + 1;
-
-        for (int x = 0; x < width - 1; x += 2)
+        for (int rowY1 = 0; rowY1 < height - 1; rowY1 += 2)
         {
-            Vector2Int a = new Vector2Int(x, rowY2);     // üst sol
-            Vector2Int b = new Vector2Int(x + 1, rowY2); // üst sağ
-            Vector2Int c = new Vector2Int(x, rowY1);     // alt sol
-            Vector2Int d = new Vector2Int(x + 1, rowY1); // alt sağ
+            int rowY2 = rowY1 + 1;
 
-            bool hasA = colorGrid.ContainsKey(a);
-            bool hasB = colorGrid.ContainsKey(b);
-            bool hasC = colorGrid.ContainsKey(c);
-            bool hasD = colorGrid.ContainsKey(d);
-
-            string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
-                           (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
-
-            if (state == "Boş")
+            for (int x = 0; x < width - 1; x += 2)
             {
-                Vector3 spawnTarget = new Vector3(x + 1f, 0, rowY1 + 1f) * cellSize;
-                float spawnHeight = (height + 2);
-                Vector3 spawnStart = new Vector3(x + 1f, 0, spawnHeight) * cellSize;
+                Vector2Int a = new Vector2Int(x, rowY2);     // üst sol
+                Vector2Int b = new Vector2Int(x + 1, rowY2); // üst sağ
+                Vector2Int c = new Vector2Int(x, rowY1);     // alt sol
+                Vector2Int d = new Vector2Int(x + 1, rowY1); // alt sağ
 
-                GameObject newBlockObj = Instantiate(GameScript.Instance.blockPrefab, spawnStart, Quaternion.identity);
-                Block newBlock = newBlockObj.GetComponent<Block>();
+                bool hasA = colorGrid.ContainsKey(a);
+                bool hasB = colorGrid.ContainsKey(b);
+                bool hasC = colorGrid.ContainsKey(c);
+                bool hasD = colorGrid.ContainsKey(d);
 
-                if (newBlock != null)
+                string state = (hasA && hasB && hasC && hasD) ? "Dolu" :
+                               (!hasA && !hasB && !hasC && !hasD) ? "Boş" : "Karışık";
+
+                if (state == "Boş")
                 {
-                    RegisterBlock(newBlock);
-                    StartCoroutine(MoveBlockToPosition(newBlockObj.transform, spawnTarget, 0.5f));
-                    return true; // ✅ Spawn yapıldı
+                    Vector3 spawnTarget = new Vector3(x + 1f, 0, rowY1 + 1f) * cellSize;
+                    float spawnHeight = (height + 2);
+                    Vector3 spawnStart = new Vector3(x + 1f, 0, spawnHeight) * cellSize;
+
+                    GameObject newBlockObj = Instantiate(GameScript.Instance.blockPrefab, spawnStart, Quaternion.Euler(0, 90 * Random.Range(0, 4), 0));
+                    var color1 = GameScript.Instance.levelColors[Random.Range(0, GameScript.Instance.levelColors.Count)];
+                    var color2 = GameScript.Instance.levelColors[Random.Range(0, GameScript.Instance.levelColors.Count)];
+                    while (color1 == color2)
+                    {
+                        color2 = GameScript.Instance.levelColors[Random.Range(0, GameScript.Instance.levelColors.Count)];
+                    }
+
+                    Block newBlock = newBlockObj.GetComponent<Block>();
+                    newBlock.blockData[0].color = color1;
+                    newBlock.blockData[1].color = color1;
+                    newBlock.blockData[2].color = color2;
+                    newBlock.blockData[3].color = color2;
+                    if (newBlock != null)
+                    {
+                        RegisterBlock(newBlock);
+                        StartCoroutine(MoveBlockToPosition(newBlockObj.transform, spawnTarget, 0.1f));
+                        return true; // ✅ Spawn yapıldı
+                    }
+
+
+
                 }
             }
         }
-    }
 
-    return false; // ❌ Hiçbir boşluk bulunamadı
-}
+        return false;
+    }
 
 
 
@@ -353,9 +368,14 @@ private IEnumerator SpawnIfEmptyBlockExists()
             yield return null;
         }
 
-        // Son pozisyonu kesin olarak hedefe ayarla
         blockTransform.position = targetPos;
         Debug.Log("Block final position set to: " + targetPos);
+        UpdateColorGridFromAll();
+        CheckForMatches();
+    }
+    public Dictionary<Vector2Int, ColorType> GetColorGrid()
+    {
+        return new Dictionary<Vector2Int, ColorType>(colorGrid);
     }
 
 
@@ -416,7 +436,7 @@ private IEnumerator SpawnIfEmptyBlockExists()
                     {
                         StartCoroutine(MoveBlockDownSmooth(
                             new Vector2Int[] { checkA, checkB, checkC, checkD },
-                            cellSize * 2, 0.2f));
+                            cellSize * 2, .1f));
                     }
                 }
             }
@@ -444,7 +464,7 @@ private IEnumerator SpawnIfEmptyBlockExists()
                     {
                         StartCoroutine(MoveBlockSidewaysSmooth(
                             new Vector2Int[] { rightA, rightB, rightC, rightD },
-                            -cellSize * 2, 0.2f));
+                            -cellSize * 2, 0.1f));
                     }
                 }
             }

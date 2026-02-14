@@ -14,6 +14,16 @@ public class GameScript : MonoBehaviour
     public List<Target> targets;
     public List<TargetScript> targetScripts;
     public List<ColorType> levelColors;
+    public GameObject matchParticlePrefab;
+
+    public void SpawnMatchParticle(Vector3 pos)
+    {
+        if (matchParticlePrefab != null)
+        {
+            GameObject particle = Instantiate(matchParticlePrefab, pos + Vector3.up * 0.5f, Quaternion.identity);
+            Destroy(particle, 2f);
+        }
+    }
     private void Awake()
     {
         Instance = this;

@@ -117,6 +117,7 @@ public class GridManager : MonoBehaviour
 
             Vector2Int collectPos = block.GetOccupiedGridPositions()[0];
             GameScript.Instance.Collected(matchMaterial, new Vector3(collectPos.x * cellSize, 0, collectPos.y * cellSize));
+            GameScript.Instance.SpawnMatchParticle(new Vector3(collectPos.x * cellSize, 0, collectPos.y * cellSize));
 
             foreach (var partData in block.blockData)
             {
@@ -190,6 +191,7 @@ public class GridManager : MonoBehaviour
                     }
 
                     GameScript.Instance.Collected(matchMaterial, new Vector3((a.x * cellSize) + 1, 0, (a.y * cellSize) + 1));
+                    GameScript.Instance.SpawnMatchParticle(new Vector3((a.x * cellSize) + 1, 0, (a.y * cellSize) + 1));
 
                     foreach (var block in involvedBlocks)
                     {
@@ -232,6 +234,7 @@ public class GridManager : MonoBehaviour
 
     private IEnumerator MoveAndTransfer(Block blockA, Block blockB, float duration)
     {
+        yield return new WaitForSeconds(0.3f);
         blockA.SetColliderActive(false);
         blockB.SetColliderActive(false);
 
@@ -268,6 +271,7 @@ public class GridManager : MonoBehaviour
         blockA.SetColliderActive(true);
 
         UpdateColorGridFromAll();
+
 
         isMatchProcessing = false; // Eşleşme bitti, yer çekimi tekrar aktif
 

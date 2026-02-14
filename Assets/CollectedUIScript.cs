@@ -7,6 +7,7 @@ public class CollectedUIScript : MonoBehaviour
     public TargetScript targetScript;
     Vector3 startPos, targetPos, midPos;
     float counter;
+    float delayTimer = 0.3f;
     bool completed;
     // Start is called before the first frame update
     void Start()
@@ -20,6 +21,12 @@ public class CollectedUIScript : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (delayTimer > 0)
+        {
+            delayTimer -= Time.deltaTime;
+            return;
+        }
+
         counter += Time.deltaTime;
         transform.position = Vector3.Lerp(Vector3.Lerp(startPos, midPos, counter), Vector3.Lerp(midPos, targetPos, counter), counter);
         if(counter >= 1f && !completed)
